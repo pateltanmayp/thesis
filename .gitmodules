@@ -1,0 +1,8 @@
+[submodule "UniPhy"]
+	path = UniPhy
+	url = https://github.com/pateltanmayp/UniPhy.git
+	branch = tpatel/thesis
+[submodule "ICKANs"]
+	path = ICKANs
+	url = https://github.com/pateltanmayp/ICKANs.git
+	branch = tpatel/thesis
