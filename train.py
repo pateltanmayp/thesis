@@ -125,7 +125,7 @@ def main(cfg: omegaconf.DictConfig):
     # Define latent
     z_dim = cfg['train_cfg']['z_dim']
     num_materials = count_traj  # one material per dataset folder (I should revisit this)
-    material_latent = torch.nn.Embedding(num_materials, z_dim)
+    material_latent = torch.nn.Embedding(num_materials, z_dim).cuda()
     torch.nn.init.normal_(material_latent.weight, mean=0.0, std=0.1)
     traj_mean, traj_std = 0., 1.
     torch.nn.init.normal_(material_latent.weight, mean=traj_mean, std=traj_std)
@@ -139,7 +139,7 @@ def main(cfg: omegaconf.DictConfig):
         grid_range=grid_range,
         z_dim=z_dim,
         seed=0
-    )
+    ).cuda()
     
     optimizer = torch.optim.AdamW([
         {"params": model.parameters(), "lr": cfg['train_cfg']['lr']},
@@ -159,16 +159,16 @@ def main(cfg: omegaconf.DictConfig):
 
             optimizer.zero_grad()
 
-            input_F = data['input_F']          # (B,3,3)
-            stress_target = data['stress_target']
+            input_F = data['input_F'].cuda()
+            stress_target = data['stress_target'].cuda()
 
             # Should do this based on segmentation of scene
-            material_ids = data['material_ids']
+            material_ids = data['material_ids'].cuda()
 
             # Flatten F to match your KAN interface
             F_flat = input_F[:, :3, :3].reshape(-1, 9)  # if using 3D
-            F_flat = F_flat.clone().detach().requires_grad_(True)
-            z = material_latent(material_ids)
+            F_flat = F_flat.clone().requires_grad_(True).cuda()
+            z = material_latent(material_ids).cuda()
 
             # Energy prediction
             W = model(F_flat, z)
@@ -179,7 +179,7 @@ def main(cfg: omegaconf.DictConfig):
             )[0]
 
             # Compare to target stress (mapped consistently)
-            stress_target_flat = stress_target[:, :3, :3].reshape(-1, 9)  # if using 3D
+            stress_target_flat = stress_target[:, :3, :3].reshape(-1, 9).cuda()  # if using 3D
             loss = loss_mse(P, stress_target_flat)
 
             loss_reg = 1e-4 * torch.mean(torch.norm(material_latent.weight, dim=-1))
