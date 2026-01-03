@@ -17,6 +17,7 @@ import time
 import random
 import sys, ipdb, traceback, subprocess
 from ICKANs.drivers.model_branching import BranchingConvexKAN
+torch.set_default_dtype(torch.float32)
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -124,7 +125,7 @@ def main(cfg: omegaconf.DictConfig):
 
     # Define latent
     z_dim = cfg['train_cfg']['z_dim']
-    num_materials = count_traj  # one material per dataset folder (I should revisit this)
+    num_materials = cfg['train_cfg']['num_materials']
     material_latent = torch.nn.Embedding(num_materials, z_dim).cuda()
     torch.nn.init.normal_(material_latent.weight, mean=0.0, std=0.1)
     traj_mean, traj_std = 0., 1.
@@ -169,6 +170,9 @@ def main(cfg: omegaconf.DictConfig):
             F_flat = input_F[:, :3, :3].reshape(-1, 9)  # if using 3D
             F_flat = F_flat.clone().requires_grad_(True).cuda()
             z = material_latent(material_ids).cuda()
+
+            F_flat = F_flat.float()
+            z = z.float()
 
             # Energy prediction
             W = model(F_flat, z)
