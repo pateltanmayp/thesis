@@ -108,7 +108,8 @@ def main(cfg: omegaconf.DictConfig):
     logger.addHandler(fh)
 
     # Load dataset
-    traj_l = ["elastic_diverse", "non_newtonian_diverse", "plasticine_diverse", "sand_diverse"] # Should have "newtonian_diverse" after "elastic_diverse"
+    # traj_l = ["elastic_diverse", "non_newtonian_diverse", "plasticine_diverse", "sand_diverse"] # Should have "newtonian_diverse" after "elastic_diverse"
+    traj_l = ["interacting_diverse"] # Should have "newtonian_diverse" after "elastic_diverse"
     traj_dir_list = []
     for tl in traj_l:
         for _dir_idx, _dir in enumerate(os.listdir(os.path.join(f"{local_dir}/dataset/", tl))):
@@ -136,9 +137,10 @@ def main(cfg: omegaconf.DictConfig):
     grid_range = OmegaConf.to_container(cfg['train_cfg']['grid_range'], resolve=True)
     
     model = BranchingConvexKAN(
-        n_hidden=n_hidden,
+        n_hidden=8, # n_hidden,
         grid_range=grid_range,
         z_dim=z_dim,
+        use_kan=cfg['train_cfg']['use_kan'],
         seed=0
     ).cuda()
     
