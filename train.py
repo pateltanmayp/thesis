@@ -185,7 +185,7 @@ class FprojNN_StressNN(nn.Module):
             ('act1_fproj', self.activation),
             ('fc2_fproj', nn.Linear(hidden_size, hidden_size, bias=True)),
             ('act2_fproj', self.activation),
-            ('fc3_fproj', nn.Linear(hidden_size, hidden_size, bias=True)),
+            ('fc3_fproj', nn.Linear(hidden_size, 9, bias=True)),
         ]))
 
         self.stress_model = BranchingConstitutiveStress(
