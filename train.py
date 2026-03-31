@@ -77,13 +77,26 @@ class BranchingConstitutiveStress(nn.Module):
         else:
             # MLP fallback with hidden_size matching the rest of the network
             self.elastic_nn = nn.Sequential(
-                nn.Linear(3, hidden_size),
+                nn.Linear(9, hidden_size),
                 nn.SiLU(),
                 nn.Linear(hidden_size, hidden_size),
                 nn.SiLU(),
-                nn.Linear(hidden_size, 1),
+                nn.Linear(hidden_size, 9),
+                nn.SiLU(),
+                nn.Linear(9, 1),
                 nn.Softplus()
             )
+
+        self.plastic_nn = nn.Sequential(
+            nn.Linear(9, hidden_size),
+            nn.SiLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.SiLU(),
+            nn.Linear(hidden_size, 9),
+            nn.SiLU(),
+            nn.Linear(9, 1),
+            nn.Softplus()
+        )
 
         self.elastic_scale  = MaterialHyperNet(embed_dim, out_dim=1)
 
@@ -140,14 +153,16 @@ class BranchingConstitutiveStress(nn.Module):
         Returns:
             stress_symmetric: (P, 3, 3)
         """
-        K = self.compute_invariants(F_flat)       # (P, 3)
+        F_flat = F_flat.double()
+        z = z.double()
 
-        W_elastic     = self.elastic_nn(K)         # (P, 1)
+        W_elastic     = self.elastic_nn(F_flat)         # (P, 1)
         elastic_scale = self.elastic_scale(z)      # (P, 1)
         W_elastic     = elastic_scale * W_elastic
 
+        W_plastic      = self.plastic_nn(F_flat)
         plastic_factor = self.plastic_gate(z)      # (P, 1)
-        W_plastic      = plastic_factor * W_elastic.detach()
+        W_plastic      = plastic_factor * W_plastic
 
         weights = self.branch_weights(z)           # (P, 2)
         alpha   = weights / weights.sum(dim=1, keepdim=True)
@@ -164,7 +179,7 @@ class BranchingConstitutiveStress(nn.Module):
 
         stress = P_flat.view(-1, 3, 3)
         stress_symmetric = 0.5 * (stress + stress.permute(0, 2, 1))
-        stress_symmetric = torch.clamp(stress_symmetric, -1e4, 1e4)
+        # stress_symmetric = torch.clamp(stress_symmetric, -1e4, 1e4)
         return stress_symmetric
 
 
@@ -227,6 +242,7 @@ class FprojNN_StressNN(nn.Module):
         out_fproj    = self.fproj_model(
             torch.cat([Ftmp_flatten, latent_particles], dim=-1)
         )
+        out_fproj = torch.clamp(out_fproj, -1.0, 1.0) # TODO: verify this doesn't break stuff
         Fproj = Ftmp + out_fproj.view(out_fproj.shape[0], 3, 3)
 
         # KAN path: pass flat F and latent to BranchingConstitutiveStress
