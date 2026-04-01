@@ -1,0 +1,20 @@
+data:
+  data_path: "/home/tanmay/thesis/UniPhy/dataset/interacting_diverse/diverse_horizontalright_mu2030533.5478969873_lam684014.5633939297_fa0.3206971388350998"   # directory containing GtX.pt and MaterialID.pt
+
+model:
+  hidden_size: 128
+  num_heads: 4
+  num_layers: 9
+  dropout: 0.1
+  material_embed_dim: 1024            # dimension of material type embedding
+
+training:
+  N_train: 900                       # number of timesteps for training
+  use_validation: true
+  N_val: 100                         # number of timesteps for validation
+  max_epochs: 200
+  lr: 0.0001
+  batch_size: 32                    # number of (timestep, scene) samples per batch
+  save_dir: "./save_dir"
+  checkpoint_every: 20              # save checkpoint every N epochs
+  log_every: 1                      # log losses every N epochs
