@@ -1,2 +1,5 @@
 /outputs/
 /renders/
+/baseline/save_dir/
+*.out
+*.log
