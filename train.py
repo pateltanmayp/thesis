@@ -77,7 +77,7 @@ class BranchingConstitutiveStress(nn.Module):
         else:
             # MLP fallback with hidden_size matching the rest of the network
             self.elastic_nn = nn.Sequential(
-                nn.Linear(9, hidden_size),
+                nn.Linear(9 + 3 + 9, hidden_size),
                 nn.SiLU(),
                 nn.Linear(hidden_size, hidden_size),
                 nn.SiLU(),
@@ -88,7 +88,7 @@ class BranchingConstitutiveStress(nn.Module):
             )
 
         self.plastic_nn = nn.Sequential(
-            nn.Linear(9, hidden_size),
+            nn.Linear(9 + 3 + 9, hidden_size),
             nn.SiLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.SiLU(),
@@ -145,7 +145,7 @@ class BranchingConstitutiveStress(nn.Module):
 
         return torch.cat([K1, K2, K3], dim=1).double()  # (P, 3)
 
-    def forward(self, F_flat, z):
+    def forward(self, F_flat, C_flat, z):
         """
         Args:
             F_flat: (P, 9) flattened deformation gradient, requires_grad=True
@@ -154,13 +154,16 @@ class BranchingConstitutiveStress(nn.Module):
             stress_symmetric: (P, 3, 3)
         """
         F_flat = F_flat.double()
+        C_flat = C_flat.double()
         z = z.double()
 
-        W_elastic     = self.elastic_nn(F_flat)         # (P, 1)
+        K = self.compute_invariants(F_flat)
+        input_vec     = torch.cat([F_flat, K, C_flat], dim=-1)
+        W_elastic     = self.elastic_nn(input_vec)         # (P, 1)
         elastic_scale = self.elastic_scale(z)      # (P, 1)
         W_elastic     = elastic_scale * W_elastic
 
-        W_plastic      = self.plastic_nn(F_flat)
+        W_plastic      = self.plastic_nn(input_vec)
         plastic_factor = self.plastic_gate(z)      # (P, 1)
         W_plastic      = plastic_factor * W_plastic
 
@@ -247,8 +250,9 @@ class FprojNN_StressNN(nn.Module):
 
         # KAN path: pass flat F and latent to BranchingConstitutiveStress
         F_flat = self.flatten(F).float().detach().requires_grad_(True)
-        stress_symmetric = self.stress_model(F_flat, latent_particles)
-        # R correction is skipped for KAN — energy-based stress is
+        C_flat = self.flatten(C)
+        stress_symmetric = self.stress_model(F_flat, C_flat, latent_particles)
+        # R correction is skipped for KAN - energy-based stress is
         # already frame-indifferent by construction via the invariants
         # else:
         #     # Original MLP path (unchanged)
